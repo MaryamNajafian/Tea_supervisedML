@@ -1,0 +1,119 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from util import get_data as get_mnist
+from datetime import datetime
+
+
+def get_data():
+    w = np.array([-0.5, 0.5])
+    b = 0.1
+    #np.random.random : gives us uniformly distributed data from 0 and 1
+    # but multiplying it by 2 and subtracting 1 shifts it to -1 to +1 range
+    X = np.random.random((300, 2))*2 - 1
+    Y = np.sign(X.dot(w) + b) # perceptron = sign(wx+b)
+    return X, Y
+
+
+def get_simple_xor():
+    X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+    Y = np.array([0, 1, 1, 0])
+    return X, Y
+
+
+class Perceptron:
+    def fit(self, X, Y, learning_rate=1.0, epochs=1000):
+        # solution
+        # self.w = np.array([-0.5, 0.5])
+        # self.b = 0.1
+
+        # initialize random weights
+        D = X.shape[1]
+        self.w = np.random.randn(D)
+        self.b = 0
+
+        N = len(Y)
+        costs = []
+        for epoch in range(epochs):
+            # determine which samples are misclassified, if any
+            Yhat = self.predict(X)
+            incorrect = np.nonzero(Y != Yhat)[0]
+            if len(incorrect) == 0:
+                # we are done!
+                break
+
+            # choose a random incorrect sample
+            """
+            Perceptron Loss Function:
+                Only incorrect examples contribute to the losses
+                L(y,y_hat) = - sum(y_i (w_T.x_i)1(y_i!=y_hat_i)) 
+                    1(true) = 1
+                    1(false) = 0  
+            * We use Stochastic Gradient descent to minimize the loss with respect to w_i
+            * we take small steps i direction of dL/dw 
+            * dL/dw = - sum(y_i.x_i.1)(y!=y_i)
+            """
+            i = np.random.choice(incorrect)
+            self.w += learning_rate*Y[i]*X[i]
+            self.b += learning_rate*Y[i]
+
+            # cost is incorrect rate
+            c = len(incorrect) / float(N)
+            costs.append(c)
+        print("final w:", self.w, "final b:", self.b, "epochs:", (epoch+1), "/", epochs)
+        plt.plot(costs)
+        plt.show()
+
+    def predict(self, X):
+        return np.sign(X.dot(self.w) + self.b)
+
+    def score(self, X, Y):
+        P = self.predict(X)
+        return np.mean(P == Y)
+
+
+if __name__ == '__main__':
+    # linearly separable data
+    X, Y = get_data()
+    plt.scatter(X[:,0], X[:,1], c=Y, s=100, alpha=0.5)
+    plt.show()
+    Ntrain = len(Y) // 2
+    Xtrain, Ytrain = X[:Ntrain], Y[:Ntrain]
+    Xtest, Ytest = X[Ntrain:], Y[Ntrain:]
+
+    model = Perceptron()
+    t0 = datetime.now()
+    model.fit(Xtrain, Ytrain)
+    print("Training time:", (datetime.now() - t0))
+
+    t0 = datetime.now()
+    print("Train accuracy:", model.score(Xtrain, Ytrain))
+    print("Time to compute train accuracy:", (datetime.now() - t0), "Train size:", len(Ytrain))
+
+    t0 = datetime.now()
+    print("Test accuracy:", model.score(Xtest, Ytest))
+    print("Time to compute test accuracy:", (datetime.now() - t0), "Test size:", len(Ytest))
+
+
+    # mnist
+    X, Y = get_mnist()
+    # perceptron can only do binary classification so we want
+    # the samples that are either have label 0 or 1
+    idx = np.logical_or(Y == 0, Y == 1)
+    X = X[idx]
+    Y = Y[idx]
+    # perceptron also uses +1 and -1 labels
+    Y[Y == 0] = -1
+    model = Perceptron()
+    t0 = datetime.now()
+    model.fit(X, Y, learning_rate=1e-2)
+    print("MNIST train accuracy:", model.score(X, Y))
+
+
+    # xor data
+    print("")
+    print("XOR results:")
+    X, Y = get_simple_xor()
+    Y[Y == 0] = -1
+    model.fit(X, Y)
+    print("XOR accuracy:", model.score(X, Y))
+
